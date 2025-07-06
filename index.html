@@ -76,10 +76,10 @@
               title: "You are here",
               icon: {
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 12,
+                scale: 18, // larger blue dot
                 fillColor: '#4285F4',
                 fillOpacity: 1,
-                strokeWeight: 3,
+                strokeWeight: 4,
                 strokeColor: '#FFFFFF'
               }
             });
@@ -145,10 +145,10 @@
                 title: "You are here",
                 icon: {
                   path: google.maps.SymbolPath.CIRCLE,
-                  scale: 12,
+                  scale: 18,
                   fillColor: '#4285F4',
                   fillOpacity: 1,
-                  strokeWeight: 3,
+                  strokeWeight: 4,
                   strokeColor: '#FFFFFF'
                 }
               });
@@ -164,22 +164,39 @@
         position: position,
         map: map,
         draggable: true,
+        optimized: false,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
-          scale: 0, // hide default icon
-          fillOpacity: 0,
+          scale: 20, // big invisible hit zone
+          fillColor: '#FFFFFF',
+          fillOpacity: 0.0, // invisible fill
+          strokeWeight: 0
+        }
+      });
+
+      const visibleDot = new google.maps.Marker({
+        position: position,
+        map: map,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 12, // visible white dot
+          fillColor: '#FFFFFF',
+          fillOpacity: 1,
           strokeWeight: 0
         }
       });
 
       marker.addListener('drag', () => {
+        visibleDot.setPosition(marker.getPosition());
         redraw();
       });
 
       marker.addListener('dragend', () => {
+        visibleDot.setPosition(marker.getPosition());
         redraw();
       });
 
+      marker.visibleDot = visibleDot; // link them
       pointMarkers.push(marker);
     }
 
@@ -206,7 +223,7 @@
         geodesic: true,
         strokeColor: "#FFFFFF",
         strokeOpacity: 1.0,
-        strokeWeight: 7,
+        strokeWeight: 10, // thicker line
         map: map
       });
       lines.push(line);
@@ -218,7 +235,7 @@
         map: map,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
+          scale: 14, // larger white end dot
           fillColor: '#FFFFFF',
           fillOpacity: 1,
           strokeWeight: 0
@@ -237,7 +254,7 @@
       const dy = to.lat - from.lat;
       const length = Math.sqrt(dx * dx + dy * dy);
 
-      const offsetFactor = 0.0003; // push left
+      const offsetFactor = 0.0003;
       const offsetLng = -dy / length * offsetFactor;
       const offsetLat = dx / length * offsetFactor;
 
@@ -255,7 +272,7 @@
         },
         label: {
           text: `${distanceYards.toFixed(0)}y`,
-          fontSize: "28px",
+          fontSize: "36px",
           fontWeight: "bold",
           fontFamily: "Varela Round",
           color: "#FFFFFF"
