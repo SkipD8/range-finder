@@ -13,17 +13,6 @@
       height: 100%;
       width: 100%;
     }
-    #distance {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      color: #fff;
-      padding: 8px 12px;
-      border-radius: 5px;
-      font-family: 'Varela Round', sans-serif;
-    }
     #clearBtn {
       position: absolute;
       top: 20px;
@@ -31,22 +20,17 @@
       background: transparent;
       color: #fff;
       font-family: 'Varela Round', sans-serif;
-      font-size: 36px;
-      font-weight: bold;
-      border: 2px solid #fff;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      line-height: 44px;
-      text-align: center;
+      font-size: calc(16.6vw); /* 1/6 of screen width */
+      font-weight: 900;
+      border: none;
       cursor: pointer;
       display: none;
+      line-height: 1;
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <div id="distance"></div>
   <button id="clearBtn">X</button>
 
   <script>
@@ -83,8 +67,6 @@
             lng: position.coords.longitude
           };
 
-          console.log('Position updated:', userLocation);
-
           if (userMarker) {
             userMarker.setPosition(userLocation);
           } else {
@@ -94,7 +76,7 @@
               title: "You are here",
               icon: {
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 12, // Larger than before
+                scale: 12,
                 fillColor: '#4285F4',
                 fillOpacity: 1,
                 strokeWeight: 3,
@@ -105,7 +87,6 @@
           }
 
         }, (error) => {
-          console.error('Geolocation error:', error);
           alert("Geolocation error:\n" + error.message + "\n(Code " + error.code + ")");
         }, {
           enableHighAccuracy: true,
@@ -116,40 +97,33 @@
         alert("Geolocation not supported.");
       }
 
-      // Single tap: first line
       map.addListener("click", (e) => {
         if (tappedPoints.length === 0) {
           if (!userLocation) return;
 
-          // Freeze location
           if (watchId) {
             navigator.geolocation.clearWatch(watchId);
-            console.log('GPS updates stopped, position frozen at:', userLocation);
           }
 
           tappedPoints.push(userLocation);
           tappedPoints.push(e.latLng.toJSON());
           drawLine(userLocation, e.latLng.toJSON());
-          updateDistance(userLocation, e.latLng.toJSON());
           addEndDot(e.latLng.toJSON());
           addLabel(userLocation, e.latLng.toJSON());
           document.getElementById("clearBtn").style.display = "block";
         }
       });
 
-      // Double tap: next lines
       map.addListener("dblclick", (e) => {
         if (tappedPoints.length >= 1) {
           let lastPoint = tappedPoints[tappedPoints.length - 1];
           tappedPoints.push(e.latLng.toJSON());
           drawLine(lastPoint, e.latLng.toJSON());
-          updateDistance(lastPoint, e.latLng.toJSON());
           addEndDot(e.latLng.toJSON());
           addLabel(lastPoint, e.latLng.toJSON());
         }
       });
 
-      // Clear button
       document.getElementById("clearBtn").addEventListener("click", () => {
         tappedPoints = [];
         lines.forEach(line => line.setMap(null));
@@ -158,10 +132,8 @@
         lines = [];
         endDots = [];
         labels = [];
-        document.getElementById("distance").innerText = "";
         document.getElementById("clearBtn").style.display = "none";
 
-        // Restart GPS updates
         if (navigator.geolocation) {
           watchId = navigator.geolocation.watchPosition(position => {
             userLocation = {
@@ -197,7 +169,7 @@
         geodesic: true,
         strokeColor: "#FFFFFF",
         strokeOpacity: 1.0,
-        strokeWeight: 7, // Thicker line
+        strokeWeight: 7, // thick line
         map: map
       });
       lines.push(line);
@@ -209,7 +181,7 @@
         map: map,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
-          scale: 9, // Slightly larger than line
+          scale: 10,
           fillColor: '#FFFFFF',
           fillOpacity: 1,
           strokeWeight: 0
@@ -220,21 +192,34 @@
 
     function addLabel(from, to) {
       const distanceYards = calculateDistance(from, to);
-      const midpoint = {
-        lat: (from.lat + to.lat) / 2,
-        lng: (from.lng + to.lng) / 2
+
+      const midLat = (from.lat + to.lat) / 2;
+      const midLng = (from.lng + to.lng) / 2;
+
+      const dx = to.lng - from.lng;
+      const dy = to.lat - from.lat;
+      const length = Math.sqrt(dx * dx + dy * dy);
+
+      // Increased for more push left
+      const offsetFactor = 0.0003;
+      const offsetLng = -dy / length * offsetFactor;
+      const offsetLat = dx / length * offsetFactor;
+
+      const offsetMidpoint = {
+        lat: midLat + offsetLat,
+        lng: midLng + offsetLng
       };
 
       const label = new google.maps.Marker({
-        position: midpoint,
+        position: offsetMidpoint,
         map: map,
         icon: {
           path: 'M0 0',
-          scale: 0,
+          scale: 0
         },
         label: {
           text: `${distanceYards.toFixed(0)}y`,
-          fontSize: "24px",
+          fontSize: "28px",
           fontWeight: "bold",
           fontFamily: "Varela Round",
           color: "#FFFFFF"
@@ -242,12 +227,6 @@
       });
 
       labels.push(label);
-    }
-
-    function updateDistance(from, to) {
-      const distanceYards = calculateDistance(from, to);
-      document.getElementById("distance").innerText =
-        `Distance: ${distanceYards.toFixed(2)} yards`;
     }
 
     function calculateDistance(from, to) {
@@ -263,8 +242,7 @@
                 Math.sin(dLon/2) * Math.sin(dLon/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distanceMeters = R * c;
-      const distanceYards = distanceMeters * 1.09361;
-      return distanceYards;
+      return distanceMeters * 1.09361; // yards
     }
   </script>
   <script async
