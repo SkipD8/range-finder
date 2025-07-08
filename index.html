@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Range Finder</title>
+  <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Varela Round', sans-serif;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Scorecard toggle button */
+    #scorecardBtn {
+      position: absolute;
+      bottom: 110px;  /* above slider */
+      left: 20px;
+      font-size: 32px;
+      background: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 9999;
+      padding: 6px 10px;
+    }
+
+    /* Scorecard container */
+    #scorecardContainer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      overflow-x: scroll;
+      overflow-y: hidden;
+      z-index: 9998;
+      display: none;
+    }
+    .scorecard {
+      display: inline-block;
+      min-width: 1200px; /* make it wide to scroll */
+      padding: 20px;
+    }
+    table {
+      border-collapse: collapse;
+      width: auto;
+    }
+    th, td {
+      border: 2px solid #000;
+      padding: 10px;
+      text-align: center;
+      min-width: 50px;
+    }
+    th {
+      background: #f0f0f0;
+    }
+    .scorecard-header {
+      margin-bottom: 10px;
+    }
+    #courseName {
+      width: 300px;
+    }
+    .dropdown {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #ccc;
+      display: none;
+      z-index: 9999;
+    }
+    .dropdown div {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .dropdown div:hover {
+      background: #eee;
+    }
+
+    /* Keep existing map UI elements */
+    #clearBtn, #centerBtn, #rotationSlider, #version {
+      position: absolute;
+      z-index: 9999;
+    }
+    #clearBtn {
+      top: 20px; right: 20px;
+    }
+    #centerBtn {
+      top: 20px; left: 20px;
+    }
+    #rotationSlider {
+      bottom: 60px; left: 50%;
+      transform: translateX(-50%);
+      width: 75%;
+      height: 40px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+
+  <!-- Buttons and slider -->
+  <button id="clearBtn">X</button>
+  <button id="centerBtn"></button>
+  <button id="scorecardBtn">📋</button>
+  <input type="range" min="-180" max="180" value="0" id="rotationSlider">
+  <div id="version">v1.5</div>
+
+  <!-- Scorecard overlay -->
+  <div id="scorecardContainer">
+    <div class="scorecard">
+      <div class="scorecard-header">
+        <label>Course: <input type="text" id="courseName" placeholder="Winchester Country Club"></label>
+        <button id="setParBtn">SET</button>
+        <button id="resetParBtn">RESET</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Hole</th>
+            <!-- Example: 1 to 9, IN, 10 to 18, OUT -->
+            <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th>
+            <th>IN</th>
+            <th>10</th><th>11</th><th>12</th><th>13</th><th>14</th><th>15</th><th>16</th><th>17</th><th>18</th>
+            <th>OUT</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Course Par</td>
+            <!-- Tappable cells for par -->
+            <!-- Cells B2 to J2 and L2 to T2 -->
+            <td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td>
+            <td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td>
+            <td class="sum-in"></td>
+            <td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td>
+            <td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td><td class="par-cell"></td>
+            <td class="sum-out"></td>
+          </tr>
+          <!-- Player rows -->
+          <tr><td>Player 1</td><td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td>
+            <td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td>
+            <td class="sum-in"></td>
+            <td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td>
+            <td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td><td class="score-cell"></td>
+            <td class="sum-out"></td></tr>
+          <!-- Add more players the same way -->
+        </tbody>
+      </table>
+    </div>
+    <div class="dropdown" id="dropdown">
+      <div>3</div>
+      <div>4</div>
+      <div>5</div>
+    </div>
+  </div>
+
+  <!-- Your map script here -->
+  <script>
+    // Scorecard toggle
+    const scorecardBtn = document.getElementById('scorecardBtn');
+    const scorecardContainer = document.getElementById('scorecardContainer');
+
+    scorecardBtn.addEventListener('click', () => {
+      if (scorecardContainer.style.display === 'none') {
+        scorecardContainer.style.display = 'block';
+      } else {
+        scorecardContainer.style.display = 'none';
+      }
+    });
+
+    // Dropdown logic for Course Par
+    const dropdown = document.getElementById('dropdown');
+    let currentParCell = null;
+
+    document.querySelectorAll('.par-cell').forEach(cell => {
+      cell.addEventListener('click', (e) => {
+        const rect = cell.getBoundingClientRect();
+        dropdown.style.left = `${rect.left}px`;
+        dropdown.style.top = `${rect.bottom}px`;
+        dropdown.style.display = 'block';
+        currentParCell = cell;
+      });
+    });
+
+    dropdown.querySelectorAll('div').forEach(option => {
+      option.addEventListener('click', () => {
+        if (currentParCell) {
+          currentParCell.textContent = option.textContent;
+          dropdown.style.display = 'none';
+        }
+      });
+    });
+
+    // Player score inputs: open numbers-only keyboard
+    document.querySelectorAll('.score-cell').forEach(cell => {
+      cell.addEventListener('click', () => {
+        const score = prompt('Enter score:', '');
+        if (score !== null && !isNaN(score)) {
+          cell.textContent = score;
+        }
+      });
+    });
+
+    // Save scroll position for scorecard
+    scorecardContainer.addEventListener('scroll', () => {
+      sessionStorage.setItem('scorecardScroll', scorecardContainer.scrollLeft);
+    });
+    window.addEventListener('load', () => {
+      const scroll = sessionStorage.getItem('scorecardScroll');
+      if (scroll) {
+        scorecardContainer.scrollLeft = scroll;
+      }
+    });
+
+    // Your Google Maps code goes here...
+
+  </script>
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA3mH6gIcbi_WiWapx2mx4Jf_JacRQVrhw&callback=initMap">
+  </script>
+</body>
+</html>
